@@ -20,7 +20,7 @@ travis-ci = { repository = "phaazon/glsl", branch = "master" }
 proc-macro = true
 
 [dependencies]
-glsl = "7"
+glsl = { version = "7", features = ["spirv"] }
 proc-macro2 = "1"
 proc-macro-faithful-display = "0.2"
 quote = "1"

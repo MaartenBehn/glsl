@@ -67,11 +67,12 @@
 
 extern crate proc_macro;
 
+use std::str::FromStr;
 use glsl::parser::Parse;
 use glsl::syntax;
 use proc_macro2::TokenStream;
 use proc_macro_faithful_display::faithful_display;
-
+use glsl::transpiler::spirv::ShaderKind;
 use crate::tokenize::Tokenize;
 
 mod quoted;
@@ -92,6 +93,34 @@ pub fn glsl(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     stream.into()
   } else {
-    panic!("GLSL error: {:?}", parsed);
+    panic!("GLSL error: {:?}", parsed.unwrap_err());
+  }
+}
+
+/// Create a [`TranslationUnit`].
+///
+/// [`TranslationUnit`]: https://docs.rs/glsl/1.0.0/glsl/syntax/struct.TranslationUnit.html
+#[proc_macro]
+pub fn glsl_comp(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  let s = format!("{}", faithful_display(&input));
+  let parsed: Result<syntax::TranslationUnit, _> = Parse::parse(&s);
+
+  if let Ok(tu) = parsed {
+    let mut buf = vec![];
+    let res = glsl::transpiler::spirv::transpile_translation_unit_to_binary(&mut buf, &tu, ShaderKind::Compute);
+    if res.is_err() {
+      panic!("{}", res.unwrap_err());
+    }
+    
+    let mut token_string = String::new();
+    token_string += "&[";
+    for b in buf {
+      token_string += &format!("{},", b);
+    }
+    token_string += "]";
+
+    proc_macro::TokenStream::from_str(&token_string).unwrap()
+  } else {
+    panic!("GLSL error: {}", parsed.unwrap_err());
   }
 }
